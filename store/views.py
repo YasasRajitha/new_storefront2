@@ -1,5 +1,6 @@
 from django.shortcuts import render,get_object_or_404
 from django.http import HttpResponse
+from django.db.models.aggregates import Count
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -26,10 +27,11 @@ def product_list(request):
         # else:
         #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         serializer.is_valid(raise_exception=True)
-        print(serializer.validated_data)
-        return Response('ok')
+        serializer.save()
+        # print(serializer.validated_data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-@api_view()
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 def product_detail(request,id):
     # try:
     #     product = Product.objects.get(pk=id)
@@ -39,14 +41,58 @@ def product_detail(request,id):
     # except Product.DoesNotExist:
     #     return Response(status=status.HTTP_404_NOT_FOUND)
     product = get_object_or_404(Product,pk=id)
-    serializer = ProductSerializer(product, context={'request': request})
 
-    return Response(serializer.data)
+    if request.method == 'GET':
+        serializer = ProductSerializer(product, context={'request': request})
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        serializer = ProductSerializer(product, data = request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data) 
+    
+    elif request.method == 'DELETE':
 
-@api_view()
+        print(product.delete())
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 def collection_detail(request,pk):
 
-    collection = Collection.objects.get(pk=pk)
-    serializer = CollectionSerializer(collection)
+    collection = get_object_or_404(Collection.objects.annotate(products_count=Count('products')),pk=pk)
+    if request.method == 'GET':
+        serializer = CollectionSerializer(collection)
 
-    return Response(serializer.data)
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        serializer = CollectionSerializer(collection, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data)
+    
+    elif request.method == 'DELETE':
+        if collection.products.count() > 0:
+            return Response({"error": "Collection cannot be deleted because it includes one or more products"})
+        print(collection.delete())
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST'])
+def collection_list(request):
+    if request.method == 'GET':
+        queryset = Collection.objects.annotate(products_count=Count('products')).all().order_by('id')
+        serializer = CollectionSerializer(queryset,many=True)
+
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        serializer = CollectionSerializer(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
