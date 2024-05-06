@@ -213,7 +213,7 @@ class ReviewViewSet(ModelViewSet):
     def get_queryset(self):
         return Review.objects.filter(product_id=self.kwargs['product_pk'])
 
-        # for key,valuue in self.kwargs.items():
+        # for key,value in self.kwargs.items():
         #     print(key)
 
         # return {}
