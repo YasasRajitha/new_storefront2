@@ -68,4 +68,8 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         product_id = self.context['product_id']
+
+        # for key,value in validated_data.items():
+        #     print(key)
+
         return Review.objects.create(product_id = product_id, **validated_data)
